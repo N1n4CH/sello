@@ -41,7 +41,7 @@ piece of work, not something this prototype does.
   count and a signature reference. No NFT, no metadata, no marketplace.
 - React and Vite for the three screens
 
-Contract address: _fill in after deploying_
+Contract address: 0x26b1653618d6b871D6cc7afa011e9B4a2E9BE8dE
 
 ## Running it
 
