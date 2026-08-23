@@ -21,11 +21,21 @@ export function isConfigured() {
     CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000';
 }
 
+function pickMetaMask() {
+  const eth = window.ethereum;
+  if (!eth) return null;
+  if (Array.isArray(eth.providers)) {
+    return eth.providers.find((p) => p.isMetaMask) ?? eth.providers[0];
+  }
+  return eth;
+}
+
 export async function connectWallet() {
-  if (!window.ethereum) {
+  const injected = pickMetaMask();
+  if (!injected) {
     throw new Error('No browser wallet found. Install MetaMask to publish a score.');
   }
-  const provider = new BrowserProvider(window.ethereum);
+  const provider = new BrowserProvider(injected);
   await provider.send('eth_requestAccounts', []);
   const signer = await provider.getSigner();
   return { provider, signer, address: await signer.getAddress() };
@@ -34,16 +44,21 @@ export async function connectWallet() {
 export async function submitScore({ signer, score, visits, sigRef }) {
   const code = await signer.provider.getCode(CONTRACT_ADDRESS);
   if (code === '0x') {
-    throw new Error(
-      `No contract at ${CONTRACT_ADDRESS} on this network. Check the address and the selected chain.`
-    );
+    throw new Error(`No contract at ${CONTRACT_ADDRESS} on this network.`);
   }
   if (!sigRef || /^0x0+$/.test(sigRef)) {
     throw new Error('This visit has no merchant signature. Clear the device and add a fresh receipt.');
   }
 
   const contract = new Contract(CONTRACT_ADDRESS, ABI, signer);
-  const tx = await contract.submitScore(score, visits, sigRef);
+  const data = contract.interface.encodeFunctionData('submitScore', [score, visits, sigRef]);
+
+  const tx = await signer.sendTransaction({
+    to: CONTRACT_ADDRESS,
+    data,
+    gasLimit: 150000n
+  });
+
   const receipt = await tx.wait();
   return receipt.hash ?? tx.hash;
 }
