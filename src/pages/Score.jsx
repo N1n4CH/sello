@@ -9,6 +9,17 @@ import {
 } from '../lib/chain.js';
 import { computeScore, clearLedger } from '../lib/receipt.js';
 
+function describe(err) {
+  console.error(err);
+  return (
+    err.info?.error?.message ??
+    err.shortMessage ??
+    err.reason ??
+    err.message ??
+    'Unknown error'
+  );
+}
+
 export default function Score({ entries, onReset }) {
   const [account, setAccount] = useState(null);
   const [signer, setSigner] = useState(null);
@@ -27,7 +38,7 @@ export default function Score({ entries, onReset }) {
       setSigner(s);
       setAccount(address);
     } catch (err) {
-      setError(err.message);
+      setError(describe(err));
     }
   }
 
@@ -43,7 +54,7 @@ export default function Score({ entries, onReset }) {
       });
       setTx(hash);
     } catch (err) {
-      setError(err.shortMessage ?? err.message);
+      setError(describe(err));
     } finally {
       setBusy(false);
     }
@@ -54,7 +65,7 @@ export default function Score({ entries, onReset }) {
     try {
       setOnChain(await readScore(account));
     } catch (err) {
-      setError(err.shortMessage ?? err.message);
+      setError(describe(err));
     }
   }
 

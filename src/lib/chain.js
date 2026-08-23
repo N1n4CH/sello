@@ -1,18 +1,19 @@
 import { BrowserProvider, Contract, JsonRpcProvider } from 'ethers';
 
-// Fill this in after deploying contracts/LocalSpendScore.sol.
 export const CONTRACT_ADDRESS =
   import.meta.env.VITE_CONTRACT_ADDRESS ?? '0x0000000000000000000000000000000000000000';
 
 export const READ_RPC_URL = import.meta.env.VITE_RPC_URL ?? '';
 
 export const EXPLORER_BASE =
-  import.meta.env.VITE_EXPLORER_BASE ?? 'https://sepolia.basescan.org';
+  import.meta.env.VITE_EXPLORER_BASE ?? 'https://sepolia.etherscan.io';
 
 export const ABI = [
   'function submitScore(uint8 score, uint32 visits, bytes32 sigRef) external',
   'function scoreOf(address customer) external view returns (uint8 score, uint32 visits, bytes32 sigRef, uint64 updatedAt)',
-  'event ScoreSubmitted(address indexed customer, uint8 score, uint32 visits, bytes32 sigRef, uint64 timestamp)'
+  'event ScoreSubmitted(address indexed customer, uint8 score, uint32 visits, bytes32 sigRef, uint64 timestamp)',
+  'error ScoreOutOfRange(uint8 score)',
+  'error MissingSignatureRef()'
 ];
 
 export function isConfigured() {
@@ -31,6 +32,16 @@ export async function connectWallet() {
 }
 
 export async function submitScore({ signer, score, visits, sigRef }) {
+  const code = await signer.provider.getCode(CONTRACT_ADDRESS);
+  if (code === '0x') {
+    throw new Error(
+      `No contract at ${CONTRACT_ADDRESS} on this network. Check the address and the selected chain.`
+    );
+  }
+  if (!sigRef || /^0x0+$/.test(sigRef)) {
+    throw new Error('This visit has no merchant signature. Clear the device and add a fresh receipt.');
+  }
+
   const contract = new Contract(CONTRACT_ADDRESS, ABI, signer);
   const tx = await contract.submitScore(score, visits, sigRef);
   const receipt = await tx.wait();
